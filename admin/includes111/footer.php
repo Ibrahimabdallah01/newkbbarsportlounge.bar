@@ -117,21 +117,28 @@ document.addEventListener('DOMContentLoaded', function() {
 <style>
 /* Footer Styles */
 .main-footer {
-    background: white;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
     padding: 1.5rem 0;
     margin-top: 3rem;
-    border-top: 1px solid #dee2e6;
+    border-top: 2px solid #d4af37;
     font-size: 0.875rem;
-    color: #6c757d;
+    color: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.main-footer strong {
+    color: #d4af37;
+    font-weight: 700;
 }
 
 .main-footer a {
-    color: #667eea;
-    transition: color 0.3s;
+    color: #d4af37;
+    transition: all 0.3s;
 }
 
 .main-footer a:hover {
-    color: #764ba2;
+    color: #b8860b;
+    text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
 }
 
 /* Scroll to Top Button */
@@ -142,19 +149,24 @@ document.addEventListener('DOMContentLoaded', function() {
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #b8860b 0%, #d4af37 100%);
     color: white;
-    border: none;
+    border: 2px solid rgba(212, 175, 55, 0.3);
     cursor: pointer;
     display: none;
     z-index: 1000;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    transition: transform 0.3s, box-shadow 0.3s;
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+    transition: all 0.3s;
 }
 
 #scrollToTop:hover {
     transform: translateY(-5px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.6);
+    background: linear-gradient(135deg, #d4af37 0%, #b8860b 100%);
+}
+
+#scrollToTop i {
+    font-size: 1.2rem;
 }
 
 @media (max-width: 768px) {

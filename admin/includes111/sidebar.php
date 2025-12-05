@@ -3,17 +3,11 @@
     <!-- Logo & Company Section -->
     <div class="sidebar-logo">
         <div class="logo-container">
-            <?php if(file_exists($company_logo)): ?>
-            <img src="<?php echo $company_logo; ?>" alt="<?php echo $company_name; ?>" class="company-logo">
-            <?php else: ?>
-            <div class="logo-placeholder">
-                <i class="fas fa-building fa-3x"></i>
-            </div>
-            <?php endif; ?>
+            <img src="../assets/img/logo_org.jpg" alt="NEW KB BAR & SPORT LOUNGE" class="company-logo">
         </div>
         <div class="company-info">
-            <h5 class="company-name"><?php echo $company_name; ?></h5>
-            <p class="system-name"><?php echo $system_name; ?></p>
+            <h5 class="company-name">NEW KB BAR & SPORT LOUNGE</h5>
+            <p class="system-name">Attendance Management System</p>
         </div>
     </div>
 
@@ -80,18 +74,19 @@
 #sidebar-wrapper {
     min-height: 100vh;
     width: 260px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
     transition: margin 0.3s ease-in-out;
     display: flex;
     flex-direction: column;
+    border-right: 2px solid #d4af37;
 }
 
 /* Logo Section */
 .sidebar-logo {
     padding: 1.5rem 1rem;
     text-align: center;
-    background: rgba(0, 0, 0, 0.1);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 2px solid rgba(212, 175, 55, 0.3);
 }
 
 .logo-container {
@@ -99,24 +94,31 @@
 }
 
 .company-logo {
-    max-width: 80px;
+    max-width: 120px;
     height: auto;
-    border-radius: 50%;
-    border: 3px solid rgba(255, 255, 255, 0.3);
-    padding: 5px;
-    background: white;
+    border-radius: 15px;
+    border: 2px solid rgba(212, 175, 55, 0.5);
+    padding: 8px;
+    background: #000;
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+    transition: all 0.3s ease;
+}
+
+.company-logo:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(212, 175, 55, 0.5);
 }
 
 .logo-placeholder {
     width: 80px;
     height: 80px;
     margin: 0 auto;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(212, 175, 55, 0.2);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: #d4af37;
 }
 
 .company-info {
@@ -124,10 +126,12 @@
 }
 
 .company-name {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: bold;
     margin-bottom: 0.25rem;
-    color: white;
+    color: #d4af37;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    line-height: 1.3;
 }
 
 .system-name {
@@ -148,27 +152,29 @@
 }
 
 .list-group-item:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
+    background: rgba(212, 175, 55, 0.1);
+    color: #d4af37;
     padding-left: 2rem;
+    border-left: 3px solid #d4af37;
 }
 
 .list-group-item.active {
-    background: rgba(255, 255, 255, 0.15);
-    color: #fff;
-    border-left: 4px solid #fff;
+    background: rgba(212, 175, 55, 0.15);
+    color: #d4af37;
+    border-left: 4px solid #d4af37;
     font-weight: 600;
 }
 
 .list-group-item i {
     width: 20px;
     text-align: center;
+    color: #d4af37;
 }
 
 /* Sidebar Divider */
 .sidebar-divider {
     height: 1px;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(212, 175, 55, 0.2);
     margin: 0.5rem 1rem;
 }
 
@@ -176,8 +182,8 @@
 .sidebar-footer {
     margin-top: auto;
     padding: 1rem;
-    background: rgba(0, 0, 0, 0.1);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.3);
+    border-top: 2px solid rgba(212, 175, 55, 0.3);
 }
 
 .user-info {
@@ -188,7 +194,7 @@
 }
 
 .user-avatar {
-    color: rgba(255, 255, 255, 0.8);
+    color: #d4af37;
 }
 
 .user-details {
@@ -206,7 +212,7 @@
     font-size: 0.75rem;
     opacity: 0.8;
     margin-bottom: 0;
-    color: rgba(255, 255, 255, 0.7);
+    color: #d4af37;
 }
 
 /* Mobile Responsive */
@@ -239,14 +245,12 @@
         z-index: 999;
     }
 
-    .company-logo,
-    .logo-placeholder {
-        width: 60px;
-        height: 60px;
+    .company-logo {
+        max-width: 90px;
     }
 
     .company-name {
-        font-size: 1rem;
+        font-size: 0.9rem;
     }
 
     .system-name {
@@ -260,15 +264,15 @@
 }
 
 #sidebar-wrapper::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.3);
 }
 
 #sidebar-wrapper::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(212, 175, 55, 0.5);
     border-radius: 3px;
 }
 
 #sidebar-wrapper::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.5);
+    background: rgba(212, 175, 55, 0.7);
 }
 </style>

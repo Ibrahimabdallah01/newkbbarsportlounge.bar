@@ -1,7 +1,7 @@
 <?php
 // Company Configuration
-$company_name = "Apizu Attendance"; // Change to your company name
-$company_logo = "../assets/img/logo.png"; // Change to your logo path
+$company_name = "NEW KB BAR & SPORT LOUNGE";
+$company_logo = "../assets/img/logo_org.jpg";
 $system_name = "Attendance Management System";
 ?>
 <!DOCTYPE html>
@@ -37,10 +37,11 @@ $system_name = "Attendance Management System";
     <link rel="stylesheet" href="../assets/css/style.css">
 
     <style>
-    /* Additional responsive styles */
+    /* Global Styles */
     body {
         overflow-x: hidden;
-        background-color: #f8f9fa;
+        background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
     #wrapper {
@@ -51,6 +52,7 @@ $system_name = "Attendance Management System";
     #page-content-wrapper {
         flex: 1;
         min-width: 0;
+        background: transparent;
     }
 
     /* Loading overlay */
@@ -60,7 +62,7 @@ $system_name = "Attendance Management System";
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(255, 255, 255, 0.9);
+        background: linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(45, 45, 45, 0.95) 100%);
         display: none;
         justify-content: center;
         align-items: center;
@@ -74,8 +76,8 @@ $system_name = "Attendance Management System";
     .spinner {
         width: 50px;
         height: 50px;
-        border: 5px solid #f3f3f3;
-        border-top: 5px solid #667eea;
+        border: 5px solid rgba(212, 175, 55, 0.2);
+        border-top: 5px solid #d4af37;
         border-radius: 50%;
         animation: spin 1s linear infinite;
     }
@@ -106,6 +108,17 @@ $system_name = "Attendance Management System";
             transform: translateY(0);
         }
     }
+
+    /* Content Area Styles */
+    .content-wrapper {
+        padding: 2rem;
+    }
+
+    @media (max-width: 768px) {
+        .content-wrapper {
+            padding: 1rem;
+        }
+    }
     </style>
 
     <?php if(isset($extra_css)): ?>
@@ -118,3 +131,5 @@ $system_name = "Attendance Management System";
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
     </div>
+
+    <div id="wrapper">

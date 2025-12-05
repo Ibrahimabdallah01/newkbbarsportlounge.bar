@@ -12,6 +12,11 @@ $page_title = "Dashboard";
 $current_page = "dashboard";
 $use_charts = true; // Enable Chart.js
 
+// Company Configuration
+$company_name = "NEW KB BAR & SPORT LOUNGE";
+$company_logo = "../assets/img/logo_org.jpg";
+$system_name = "Attendance Management System";
+
 // Fetch statistics
 $employee_count = $pdo->query("SELECT COUNT(*) FROM employees")->fetchColumn();
 $department_count = $pdo->query("SELECT COUNT(*) FROM departments")->fetchColumn();
@@ -59,643 +64,1244 @@ for ($i = 6; $i >= 0; $i--) {
 
 // Department-wise attendance (for pie chart)
 $dept_attendance = $pdo->query("SELECT d.name, COUNT(a.id) as count FROM departments d LEFT JOIN employees e ON d.id = e.department_id LEFT JOIN attendances a ON e.id = a.employee_id AND DATE(a.check_in) = '$today' GROUP BY d.id, d.name")->fetchAll(PDO::FETCH_ASSOC);
-
-// Include header
-include 'includes/header.php';
 ?>
+<!DOCTYPE html>
+<html lang="en">
 
-<div class="d-flex" id="wrapper">
-    <?php include 'includes/sidebar.php'; ?>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="<?php echo $company_name; ?> - Professional Attendance Management System">
+    <meta name="author" content="<?php echo $company_name; ?>">
+    <title><?php echo isset($page_title) ? $page_title . ' - ' . $company_name : $company_name; ?></title>
 
-    <!-- Page content wrapper -->
-    <div id="page-content-wrapper">
-        <!-- Top navigation -->
-        <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
-            <div class="container-fluid">
-                <button class="btn btn-primary" id="sidebarToggle">
-                    <i class="fas fa-bars"></i>
-                </button>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="../assets/img/favicon.png">
 
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#navbarSupportedContent">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-                <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                    <ul class="navbar-nav ms-auto mt-2 mt-lg-0">
-                        <!-- Notifications -->
-                        <li class="nav-item dropdown me-3">
-                            <a class="nav-link" href="#" role="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-bell"></i>
-                                <span class="badge bg-danger badge-sm">3</span>
-                            </a>
-                            <div class="dropdown-menu dropdown-menu-end notification-dropdown">
-                                <h6 class="dropdown-header">Notifications</h6>
-                                <div class="dropdown-divider"></div>
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-user-check text-success me-2"></i>
-                                    New employee registered
-                                </a>
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-clock text-warning me-2"></i>
-                                    Late check-in detected
-                                </a>
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-calendar text-info me-2"></i>
-                                    Monthly report ready
-                                </a>
-                                <div class="dropdown-divider"></div>
-                                <a class="dropdown-item text-center" href="#">View all notifications</a>
-                            </div>
-                        </li>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-                        <!-- User Dropdown -->
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" id="navbarDropdown" href="#" role="button"
-                                data-bs-toggle="dropdown">
-                                <i class="fas fa-user-circle me-1"></i>
-                                <?php echo htmlspecialchars($_SESSION["user_name"]); ?>
-                            </a>
-                            <div class="dropdown-menu dropdown-menu-end">
-                                <a class="dropdown-item" href="profile.php">
-                                    <i class="fas fa-user me-2"></i>Profile
-                                </a>
-                                <a class="dropdown-item" href="#">
-                                    <i class="fas fa-cog me-2"></i>Settings
-                                </a>
-                                <div class="dropdown-divider"></div>
-                                <a class="dropdown-item" href="../logout.php">
-                                    <i class="fas fa-sign-out-alt me-2"></i>Logout
-                                </a>
-                            </div>
-                        </li>
-                    </ul>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+    /* ==================== KB BAR THEME COLORS ==================== */
+    :root {
+        --kb-gold: #d4af37;
+        --kb-dark-gold: #b8860b;
+        --kb-dark: #1a1a1a;
+        --kb-dark-alt: #2d2d2d;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        overflow-x: hidden;
+        background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    #wrapper {
+        display: flex;
+        min-height: 100vh;
+    }
+
+    #page-content-wrapper {
+        flex: 1;
+        min-width: 0;
+        background: transparent;
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(45, 45, 45, 0.95) 100%);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+
+    .loading-overlay.active {
+        display: flex;
+    }
+
+    .spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid rgba(212, 175, 55, 0.2);
+        border-top: 5px solid var(--kb-gold);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    .fade-in {
+        animation: fadeIn 0.5s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* ==================== SIDEBAR ==================== */
+    #sidebar-wrapper {
+        min-height: 100vh;
+        width: 260px;
+        background: linear-gradient(135deg, var(--kb-dark) 0%, var(--kb-dark-alt) 100%);
+        transition: margin 0.3s ease-in-out;
+        display: flex;
+        flex-direction: column;
+        border-right: 2px solid var(--kb-gold);
+    }
+
+    .sidebar-logo {
+        padding: 1.5rem 1rem;
+        text-align: center;
+        background: rgba(0, 0, 0, 0.3);
+        border-bottom: 2px solid rgba(212, 175, 55, 0.3);
+    }
+
+    .logo-container {
+        margin-bottom: 1rem;
+    }
+
+    .company-logo {
+        max-width: 120px;
+        height: auto;
+        border-radius: 15px;
+        border: 2px solid rgba(212, 175, 55, 0.5);
+        padding: 8px;
+        background: #000;
+        box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+        transition: all 0.3s ease;
+    }
+
+    .company-logo:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(212, 175, 55, 0.5);
+    }
+
+    .company-info {
+        color: white;
+    }
+
+    .company-name {
+        font-size: 1rem;
+        font-weight: bold;
+        margin-bottom: 0.25rem;
+        color: var(--kb-gold);
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        line-height: 1.3;
+    }
+
+    .system-name {
+        font-size: 0.75rem;
+        opacity: 0.9;
+        margin-bottom: 0;
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    .list-group-item {
+        border: none;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.9);
+        padding: 1rem 1.5rem;
+        transition: all 0.3s;
+        font-size: 0.95rem;
+    }
+
+    .list-group-item:hover {
+        background: rgba(212, 175, 55, 0.1);
+        color: var(--kb-gold);
+        padding-left: 2rem;
+        border-left: 3px solid var(--kb-gold);
+    }
+
+    .list-group-item.active {
+        background: rgba(212, 175, 55, 0.15);
+        color: var(--kb-gold);
+        border-left: 4px solid var(--kb-gold);
+        font-weight: 600;
+    }
+
+    .list-group-item i {
+        width: 20px;
+        text-align: center;
+        color: var(--kb-gold);
+    }
+
+    .sidebar-divider {
+        height: 1px;
+        background: rgba(212, 175, 55, 0.2);
+        margin: 0.5rem 1rem;
+    }
+
+    .sidebar-footer {
+        margin-top: auto;
+        padding: 1rem;
+        background: rgba(0, 0, 0, 0.3);
+        border-top: 2px solid rgba(212, 175, 55, 0.3);
+    }
+
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: white;
+    }
+
+    .user-avatar {
+        color: var(--kb-gold);
+    }
+
+    .user-details {
+        flex: 1;
+    }
+
+    .user-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: white;
+    }
+
+    .user-role {
+        font-size: 0.75rem;
+        opacity: 0.8;
+        margin-bottom: 0;
+        color: var(--kb-gold);
+    }
+
+    /* ==================== NAVBAR ==================== */
+    .navbar {
+        background: linear-gradient(135deg, var(--kb-dark) 0%, var(--kb-dark-alt) 100%) !important;
+        border-bottom: 2px solid var(--kb-gold) !important;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn-primary,
+    #sidebarToggle {
+        background: linear-gradient(135deg, var(--kb-dark-gold) 0%, var(--kb-gold) 100%) !important;
+        border: 1px solid var(--kb-gold) !important;
+        color: white !important;
+    }
+
+    .btn-primary:hover,
+    #sidebarToggle:hover {
+        background: linear-gradient(135deg, var(--kb-gold) 0%, var(--kb-dark-gold) 100%) !important;
+        box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4) !important;
+    }
+
+    .nav-link {
+        color: rgba(255, 255, 255, 0.9) !important;
+    }
+
+    .nav-link:hover {
+        color: var(--kb-gold) !important;
+    }
+
+    .badge.bg-danger {
+        background: var(--kb-gold) !important;
+    }
+
+    /* ==================== PAGE HEADER ==================== */
+    .page-header {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 15px;
+        border-left: 4px solid var(--kb-gold);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+
+    .page-title {
+        color: var(--kb-dark);
+        font-weight: 700;
+        font-size: 1.75rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .page-title i {
+        color: var(--kb-gold);
+    }
+
+    .badge.bg-primary {
+        background: linear-gradient(135deg, var(--kb-dark-gold) 0%, var(--kb-gold) 100%) !important;
+    }
+
+    .badge.bg-success {
+        background: linear-gradient(135deg, var(--kb-dark) 0%, var(--kb-dark-alt) 100%) !important;
+        border: 1px solid var(--kb-gold);
+        color: var(--kb-gold) !important;
+    }
+
+    /* ==================== STAT CARDS ==================== */
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        transition: all 0.3s;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        height: 100%;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-card-primary {
+        border-left: 4px solid var(--kb-gold);
+    }
+
+    .stat-card-primary .stat-icon {
+        background: linear-gradient(135deg, var(--kb-dark-gold) 0%, var(--kb-gold) 100%);
+        color: white;
+    }
+
+    .stat-card-warning {
+        border-left: 4px solid var(--kb-dark-gold);
+    }
+
+    .stat-card-warning .stat-icon {
+        background: linear-gradient(135deg, var(--kb-dark) 0%, var(--kb-dark-alt) 100%);
+        color: var(--kb-gold);
+    }
+
+    .stat-card-success {
+        border-left: 4px solid #28a745;
+    }
+
+    .stat-card-success .stat-icon {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+    }
+
+    .stat-card-info {
+        border-left: 4px solid #17a2b8;
+    }
+
+    .stat-card-info .stat-icon {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        color: white;
+    }
+
+    .stat-icon {
+        width: 70px;
+        height: 70px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        flex-shrink: 0;
+    }
+
+    .stat-content {
+        flex: 1;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+        color: var(--kb-dark);
+    }
+
+    .stat-label {
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .stat-link {
+        color: var(--kb-gold);
+        text-decoration: none;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .stat-link:hover {
+        color: var(--kb-dark-gold);
+    }
+
+    .stat-trend {
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .trend-up {
+        color: #28a745;
+    }
+
+    .trend-down {
+        color: #dc3545;
+    }
+
+    /* ==================== CARDS ==================== */
+    .chart-card,
+    .activity-card,
+    .quick-actions-card,
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, var(--kb-dark) 0%, var(--kb-dark-alt) 100%) !important;
+        color: white !important;
+        border-bottom: 2px solid var(--kb-gold) !important;
+        border-radius: 15px 15px 0 0 !important;
+        padding: 1rem 1.5rem;
+    }
+
+    .card-header .card-title {
+        color: white !important;
+        margin-bottom: 0;
+    }
+
+    .card-header i {
+        color: var(--kb-gold) !important;
+    }
+
+    /* ==================== TABLES ==================== */
+    table thead {
+        background: linear-gradient(135deg, var(--kb-dark) 0%, var(--kb-dark-alt) 100%);
+    }
+
+    table thead th {
+        color: var(--kb-gold) !important;
+        border: none;
+    }
+
+    table tbody tr:hover {
+        background: rgba(212, 175, 55, 0.05);
+    }
+
+    .text-primary {
+        color: var(--kb-gold) !important;
+    }
+
+    /* ==================== BUTTONS ==================== */
+    .btn-warning {
+        background: linear-gradient(135deg, var(--kb-dark) 0%, var(--kb-dark-alt) 100%) !important;
+        border: 1px solid var(--kb-gold) !important;
+        color: var(--kb-gold) !important;
+    }
+
+    .btn-warning:hover {
+        background: linear-gradient(135deg, var(--kb-dark-alt) 0%, var(--kb-dark) 100%) !important;
+        color: white !important;
+    }
+
+    .btn-outline-primary {
+        border: 2px solid var(--kb-gold) !important;
+        color: var(--kb-gold) !important;
+    }
+
+    .btn-outline-primary:hover {
+        background: var(--kb-gold) !important;
+        color: white !important;
+    }
+
+    /* ==================== DROPDOWN ==================== */
+    .dropdown-menu {
+        border: 1px solid var(--kb-gold);
+    }
+
+    .dropdown-header {
+        color: var(--kb-gold);
+        font-weight: 700;
+    }
+
+    .dropdown-item:hover {
+        background: rgba(212, 175, 55, 0.1);
+    }
+
+    .notification-dropdown {
+        min-width: 300px;
+    }
+
+    .badge-sm {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        font-size: 0.7rem;
+    }
+
+    /* ==================== FOOTER ==================== */
+    .main-footer {
+        background: linear-gradient(135deg, var(--kb-dark) 0%, var(--kb-dark-alt) 100%);
+        padding: 1.5rem 0;
+        margin-top: 3rem;
+        border-top: 2px solid var(--kb-gold);
+        font-size: 0.875rem;
+        color: rgba(255, 255, 255, 0.8);
+        box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .main-footer strong {
+        color: var(--kb-gold);
+    }
+
+    .main-footer a {
+        color: var(--kb-gold);
+        text-decoration: none;
+    }
+
+    .main-footer a:hover {
+        color: var(--kb-dark-gold);
+    }
+
+    /* ==================== SCROLL TO TOP ==================== */
+    #scrollToTop {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--kb-dark-gold) 0%, var(--kb-gold) 100%);
+        color: white;
+        border: 2px solid rgba(212, 175, 55, 0.3);
+        cursor: pointer;
+        display: none;
+        z-index: 1000;
+        box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+        transition: all 0.3s;
+    }
+
+    #scrollToTop:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 20px rgba(212, 175, 55, 0.6);
+        background: linear-gradient(135deg, var(--kb-gold) 0%, var(--kb-dark-gold) 100%);
+    }
+
+    .system-info li {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .system-info li:last-child {
+        border-bottom: none;
+    }
+
+    /* ==================== MOBILE RESPONSIVE ==================== */
+    @media (max-width: 768px) {
+        #sidebar-wrapper {
+            margin-left: -260px;
+            position: fixed;
+            z-index: 1000;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        #wrapper.toggled #sidebar-wrapper {
+            margin-left: 0;
+        }
+
+        #page-content-wrapper {
+            width: 100%;
+        }
+
+        #wrapper.toggled::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .company-logo {
+            max-width: 90px;
+        }
+
+        .company-name {
+            font-size: 0.9rem;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+        }
+
+        .stat-card {
+            padding: 1.25rem;
+        }
+
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            font-size: 1.75rem;
+        }
+
+        .stat-number {
+            font-size: 1.75rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+        }
+    }
+
+    /* Custom Scrollbar */
+    #sidebar-wrapper::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    #sidebar-wrapper::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3);
+    }
+
+    #sidebar-wrapper::-webkit-scrollbar-thumb {
+        background: rgba(212, 175, 55, 0.5);
+        border-radius: 3px;
+    }
+
+    #sidebar-wrapper::-webkit-scrollbar-thumb:hover {
+        background: rgba(212, 175, 55, 0.7);
+    }
+
+    @media print {
+
+        .navbar,
+        .btn,
+        #scrollToTop,
+        #sidebar-wrapper,
+        .main-footer {
+            display: none !important;
+        }
+    }
+    </style>
+</head>
+
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+
+    <div id="wrapper">
+        <!-- Sidebar -->
+        <div class="border-end" id="sidebar-wrapper">
+            <!-- Logo & Company Section -->
+            <div class="sidebar-logo">
+                <div class="logo-container">
+                    <img src="<?php echo $company_logo; ?>" alt="<?php echo $company_name; ?>" class="company-logo">
+                </div>
+                <div class="company-info">
+                    <h5 class="company-name"><?php echo $company_name; ?></h5>
+                    <p class="system-name"><?php echo $system_name; ?></p>
                 </div>
             </div>
-        </nav>
 
-        <!-- Page content -->
-        <div class="container-fluid p-3 p-md-4">
-            <!-- Page Header -->
-            <div class="page-header mb-4">
-                <div class="row align-items-center">
-                    <div class="col-md-6">
-                        <h1 class="page-title">
-                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard Overview
-                        </h1>
-                        <p class="text-muted mb-0">Welcome back,
-                            <?php echo htmlspecialchars($_SESSION["user_name"]); ?>! Here's what's happening today.</p>
-                    </div>
-                    <div class="col-md-6 text-md-end mt-3 mt-md-0">
-                        <span class="badge bg-primary p-2">
-                            <i class="fas fa-calendar me-1"></i>
-                            <?php echo date('l, F d, Y'); ?>
-                        </span>
-                        <span class="badge bg-success p-2 ms-2">
-                            <i class="fas fa-clock me-1"></i>
-                            <span id="currentTime"></span>
-                        </span>
-                    </div>
-                </div>
+            <!-- Navigation Menu -->
+            <div class="list-group list-group-flush">
+                <a class="list-group-item list-group-item-action <?php echo ($current_page == 'dashboard') ? 'active' : ''; ?>"
+                    href="dashboard.php">
+                    <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                </a>
+                <a class="list-group-item list-group-item-action <?php echo ($current_page == 'departments') ? 'active' : ''; ?>"
+                    href="departments.php">
+                    <i class="fas fa-building me-2"></i>Departments
+                </a>
+                <a class="list-group-item list-group-item-action <?php echo ($current_page == 'employees') ? 'active' : ''; ?>"
+                    href="employees.php">
+                    <i class="fas fa-users me-2"></i>Employees
+                </a>
+                <a class="list-group-item list-group-item-action <?php echo ($current_page == 'rotation') ? 'active' : ''; ?>"
+                    href="rotation_management.php">
+                    <i class="fas fa-sync-alt me-2"></i>Rotation
+                </a>
+                <a class="list-group-item list-group-item-action <?php echo ($current_page == 'leave') ? 'active' : ''; ?>"
+                    href="leave_management.php">
+                    <i class="fas fa-calendar-times me-2"></i>Leave
+                </a>
+                <a class="list-group-item list-group-item-action <?php echo ($current_page == 'reports') ? 'active' : ''; ?>"
+                    href="reports.php">
+                    <i class="fas fa-file-alt me-2"></i>Reports
+                </a>
+                <a class="list-group-item list-group-item-action <?php echo ($current_page == 'profile') ? 'active' : ''; ?>"
+                    href="profile.php">
+                    <i class="fas fa-user-circle me-2"></i>Profile
+                </a>
+
+                <div class="sidebar-divider"></div>
+
+                <a class="list-group-item list-group-item-action" href="#" onclick="window.print(); return false;">
+                    <i class="fas fa-print me-2"></i>Print
+                </a>
+                <a class="list-group-item list-group-item-action" href="../logout.php"
+                    onclick="return confirm('Are you sure you want to logout?');">
+                    <i class="fas fa-sign-out-alt me-2"></i>Logout
+                </a>
             </div>
 
-            <!-- Statistics Cards -->
-            <div class="row g-3 g-md-4 mb-4">
-                <!-- Total Employees -->
-                <div class="col-12 col-sm-6 col-xl-3">
-                    <div class="stat-card stat-card-primary">
-                        <div class="stat-icon">
-                            <i class="fas fa-users"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3 class="stat-number"><?php echo $employee_count; ?></h3>
-                            <p class="stat-label">Total Employees</p>
-                            <a href="employees.php" class="stat-link">
-                                View All <i class="fas fa-arrow-right ms-1"></i>
-                            </a>
-                        </div>
+            <!-- User Info at Bottom -->
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i class="fas fa-user-circle fa-2x"></i>
                     </div>
-                </div>
-
-                <!-- Total Departments -->
-                <div class="col-12 col-sm-6 col-xl-3">
-                    <div class="stat-card stat-card-warning">
-                        <div class="stat-icon">
-                            <i class="fas fa-building"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3 class="stat-number"><?php echo $department_count; ?></h3>
-                            <p class="stat-label">Departments</p>
-                            <a href="departments.php" class="stat-link">
-                                Manage <i class="fas fa-arrow-right ms-1"></i>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Today's Check-ins -->
-                <div class="col-12 col-sm-6 col-xl-3">
-                    <div class="stat-card stat-card-success">
-                        <div class="stat-icon">
-                            <i class="fas fa-calendar-check"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3 class="stat-number"><?php echo $today_checkins_count; ?></h3>
-                            <p class="stat-label">Today's Check-ins</p>
-                            <?php 
-                            $percentage = $yesterday_checkins_count > 0 
-                                ? round((($today_checkins_count - $yesterday_checkins_count) / $yesterday_checkins_count) * 100) 
-                                : 0;
-                            ?>
-                            <span class="stat-trend <?php echo $percentage >= 0 ? 'trend-up' : 'trend-down'; ?>">
-                                <i class="fas fa-<?php echo $percentage >= 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
-                                <?php echo abs($percentage); ?>% from yesterday
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- This Week -->
-                <div class="col-12 col-sm-6 col-xl-3">
-                    <div class="stat-card stat-card-info">
-                        <div class="stat-icon">
-                            <i class="fas fa-chart-line"></i>
-                        </div>
-                        <div class="stat-content">
-                            <h3 class="stat-number"><?php echo $week_checkins_count; ?></h3>
-                            <p class="stat-label">This Week</p>
-                            <a href="reports.php" class="stat-link">
-                                View Report <i class="fas fa-arrow-right ms-1"></i>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Charts Row -->
-            <div class="row g-3 g-md-4 mb-4">
-                <!-- Attendance Trend Chart -->
-                <div class="col-12 col-lg-8">
-                    <div class="card chart-card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-chart-area me-2"></i>Attendance Trend (Last 7 Days)
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="attendanceChart" height="80"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Department Distribution -->
-                <div class="col-12 col-lg-4">
-                    <div class="card chart-card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-chart-pie me-2"></i>Today by Department
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="departmentChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recent Activity & Quick Actions -->
-            <div class="row g-3 g-md-4">
-                <!-- Recent Attendances -->
-                <div class="col-12 col-lg-8">
-                    <div class="card activity-card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-history me-2"></i>Recent Check-ins
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Employee</th>
-                                            <th>Check-in Time</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach($recent_attendances as $att): ?>
-                                        <tr>
-                                            <td>
-                                                <i class="fas fa-user-circle me-2 text-primary"></i>
-                                                <strong><?php echo htmlspecialchars($att['employee_name']); ?></strong>
-                                            </td>
-                                            <td>
-                                                <i class="fas fa-clock me-1"></i>
-                                                <?php echo date('h:i A', strtotime($att['check_in'])); ?>
-                                            </td>
-                                            <td>
-                                                <?php
-                                                $status = $att['status'];
-                                                $badge_class = 'bg-secondary';
-                                                if ($status == 'present') $badge_class = 'bg-success';
-                                                elseif ($status == 'late') $badge_class = 'bg-warning';
-                                                elseif ($status == 'absent') $badge_class = 'bg-danger';
-                                                ?>
-                                                <span class="badge <?php echo $badge_class; ?>">
-                                                    <?php echo ucfirst($status); ?>
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="text-center mt-3">
-                                <a href="reports.php" class="btn btn-outline-primary btn-sm">
-                                    View All Attendances <i class="fas fa-arrow-right ms-1"></i>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Quick Actions -->
-                <div class="col-12 col-lg-4">
-                    <div class="card quick-actions-card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-bolt me-2"></i>Quick Actions
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-grid gap-2">
-                                <a href="employees.php" class="btn btn-primary">
-                                    <i class="fas fa-user-plus me-2"></i>Add New Employee
-                                </a>
-                                <a href="departments.php" class="btn btn-warning text-white">
-                                    <i class="fas fa-building me-2"></i>Add Department
-                                </a>
-                                <a href="reports.php" class="btn btn-success">
-                                    <i class="fas fa-file-export me-2"></i>Generate Report
-                                </a>
-                                <a href="#" onclick="window.print(); return false;" class="btn btn-info">
-                                    <i class="fas fa-print me-2"></i>Print Dashboard
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- System Info Card -->
-                    <div class="card mt-3">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-info-circle me-2"></i>System Info
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <ul class="list-unstyled system-info">
-                                <li>
-                                    <i class="fas fa-calendar-alt text-primary me-2"></i>
-                                    <strong>Month:</strong> <?php echo $month_checkins_count; ?> check-ins
-                                </li>
-                                <li>
-                                    <i class="fas fa-server text-success me-2"></i>
-                                    <strong>Status:</strong> <span class="text-success">Online</span>
-                                </li>
-                                <li>
-                                    <i class="fas fa-code-branch text-info me-2"></i>
-                                    <strong>Version:</strong> 1.0.0
-                                </li>
-                            </ul>
-                        </div>
+                    <div class="user-details">
+                        <p class="user-name"><?php echo htmlspecialchars($_SESSION["user_name"]); ?></p>
+                        <p class="user-role">Administrator</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <?php include 'includes/footer.php'; ?>
+        <!-- Page content wrapper -->
+        <div id="page-content-wrapper">
+            <!-- Top navigation -->
+            <nav class="navbar navbar-expand-lg navbar-dark">
+                <div class="container-fluid">
+                    <button class="btn btn-primary" id="sidebarToggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#navbarSupportedContent">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+
+                    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                        <ul class="navbar-nav ms-auto mt-2 mt-lg-0">
+                            <!-- Notifications -->
+                            <li class="nav-item dropdown me-3">
+                                <a class="nav-link" href="#" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-bell"></i>
+                                    <span class="badge bg-danger badge-sm">3</span>
+                                </a>
+                                <div class="dropdown-menu dropdown-menu-end notification-dropdown">
+                                    <h6 class="dropdown-header">Notifications</h6>
+                                    <div class="dropdown-divider"></div>
+                                    <a class="dropdown-item" href="#">
+                                        <i class="fas fa-user-check text-success me-2"></i>
+                                        New employee registered
+                                    </a>
+                                    <a class="dropdown-item" href="#">
+                                        <i class="fas fa-clock text-warning me-2"></i>
+                                        Late check-in detected
+                                    </a>
+                                    <a class="dropdown-item" href="#">
+                                        <i class="fas fa-calendar text-info me-2"></i>
+                                        Monthly report ready
+                                    </a>
+                                    <div class="dropdown-divider"></div>
+                                    <a class="dropdown-item text-center" style="color: var(--kb-gold);" href="#">View
+                                        all notifications</a>
+                                </div>
+                            </li>
+
+                            <!-- User Dropdown -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" id="navbarDropdown" href="#" role="button"
+                                    data-bs-toggle="dropdown">
+                                    <i class="fas fa-user-circle me-1" style="color: var(--kb-gold);"></i>
+                                    <?php echo htmlspecialchars($_SESSION["user_name"]); ?>
+                                </a>
+                                <div class="dropdown-menu dropdown-menu-end">
+                                    <a class="dropdown-item" href="profile.php">
+                                        <i class="fas fa-user me-2" style="color: var(--kb-gold);"></i>Profile
+                                    </a>
+                                    <a class="dropdown-item" href="#">
+                                        <i class="fas fa-cog me-2" style="color: var(--kb-gold);"></i>Settings
+                                    </a>
+                                    <div class="dropdown-divider"></div>
+                                    <a class="dropdown-item" href="../logout.php">
+                                        <i class="fas fa-sign-out-alt me-2 text-danger"></i>Logout
+                                    </a>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Page content -->
+            <div class="container-fluid p-3 p-md-4">
+                <!-- Page Header -->
+                <div class="page-header">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h1 class="page-title">
+                                <i class="fas fa-tachometer-alt me-2"></i>Dashboard Overview
+                            </h1>
+                            <p class="text-muted mb-0">Welcome back,
+                                <?php echo htmlspecialchars($_SESSION["user_name"]); ?>! Here's what's happening today.
+                            </p>
+                        </div>
+                        <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                            <span class="badge bg-primary p-2">
+                                <i class="fas fa-calendar me-1"></i>
+                                <?php echo date('l, F d, Y'); ?>
+                            </span>
+                            <span class="badge bg-success p-2 ms-2">
+                                <i class="fas fa-clock me-1"></i>
+                                <span id="currentTime"></span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistics Cards -->
+                <div class="row g-3 g-md-4 mb-4">
+                    <!-- Total Employees -->
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="stat-card stat-card-primary">
+                            <div class="stat-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-number"><?php echo $employee_count; ?></h3>
+                                <p class="stat-label">Total Employees</p>
+                                <a href="employees.php" class="stat-link">
+                                    View All <i class="fas fa-arrow-right ms-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Total Departments -->
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="stat-card stat-card-warning">
+                            <div class="stat-icon">
+                                <i class="fas fa-building"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-number"><?php echo $department_count; ?></h3>
+                                <p class="stat-label">Departments</p>
+                                <a href="departments.php" class="stat-link">
+                                    Manage <i class="fas fa-arrow-right ms-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Today's Check-ins -->
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="stat-card stat-card-success">
+                            <div class="stat-icon">
+                                <i class="fas fa-calendar-check"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-number"><?php echo $today_checkins_count; ?></h3>
+                                <p class="stat-label">Today's Check-ins</p>
+                                <?php 
+                                $percentage = $yesterday_checkins_count > 0 
+                                    ? round((($today_checkins_count - $yesterday_checkins_count) / $yesterday_checkins_count) * 100) 
+                                    : 0;
+                                ?>
+                                <span class="stat-trend <?php echo $percentage >= 0 ? 'trend-up' : 'trend-down'; ?>">
+                                    <i class="fas fa-<?php echo $percentage >= 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
+                                    <?php echo abs($percentage); ?>% from yesterday
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- This Week -->
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="stat-card stat-card-info">
+                            <div class="stat-icon">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 class="stat-number"><?php echo $week_checkins_count; ?></h3>
+                                <p class="stat-label">This Week</p>
+                                <a href="reports.php" class="stat-link">
+                                    View Report <i class="fas fa-arrow-right ms-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="row g-3 g-md-4 mb-4">
+                    <!-- Attendance Trend Chart -->
+                    <div class="col-12 col-lg-8">
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="fas fa-chart-area me-2"></i>Attendance Trend (Last 7 Days)
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="attendanceChart" height="80"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Department Distribution -->
+                    <div class="col-12 col-lg-4">
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="fas fa-chart-pie me-2"></i>Today by Department
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="departmentChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity & Quick Actions -->
+                <div class="row g-3 g-md-4">
+                    <!-- Recent Attendances -->
+                    <div class="col-12 col-lg-8">
+                        <div class="card activity-card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="fas fa-history me-2"></i>Recent Check-ins
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Employee</th>
+                                                <th>Check-in Time</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php if (count($recent_attendances) > 0): ?>
+                                            <?php foreach($recent_attendances as $att): ?>
+                                            <tr>
+                                                <td>
+                                                    <i class="fas fa-user-circle me-2 text-primary"></i>
+                                                    <strong><?php echo htmlspecialchars($att['employee_name']); ?></strong>
+                                                </td>
+                                                <td>
+                                                    <i class="fas fa-clock me-1"></i>
+                                                    <?php echo date('h:i A', strtotime($att['check_in'])); ?>
+                                                </td>
+                                                <td>
+                                                    <?php
+                                                        $status = $att['status'];
+                                                        $badge_class = 'bg-secondary';
+                                                        if ($status == 'present') $badge_class = 'bg-success';
+                                                        elseif ($status == 'late') $badge_class = 'bg-warning';
+                                                        elseif ($status == 'absent') $badge_class = 'bg-danger';
+                                                        ?>
+                                                    <span class="badge <?php echo $badge_class; ?>">
+                                                        <?php echo ucfirst($status); ?>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                            <?php else: ?>
+                                            <tr>
+                                                <td colspan="3" class="text-center text-muted">
+                                                    <i class="fas fa-info-circle me-2"></i>No check-ins recorded today
+                                                </td>
+                                            </tr>
+                                            <?php endif; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="text-center mt-3">
+                                    <a href="reports.php" class="btn btn-outline-primary btn-sm">
+                                        View All Attendances <i class="fas fa-arrow-right ms-1"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="col-12 col-lg-4">
+                        <div class="card quick-actions-card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="fas fa-bolt me-2"></i>Quick Actions
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <a href="employees.php" class="btn btn-primary">
+                                        <i class="fas fa-user-plus me-2"></i>Add New Employee
+                                    </a>
+                                    <a href="departments.php" class="btn btn-warning">
+                                        <i class="fas fa-building me-2"></i>Add Department
+                                    </a>
+                                    <a href="reports.php" class="btn btn-success">
+                                        <i class="fas fa-file-export me-2"></i>Generate Report
+                                    </a>
+                                    <a href="#" onclick="window.print(); return false;" class="btn btn-info">
+                                        <i class="fas fa-print me-2"></i>Print Dashboard
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- System Info Card -->
+                        <div class="card mt-3">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="fas fa-info-circle me-2"></i>System Info
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-unstyled system-info">
+                                    <li>
+                                        <i class="fas fa-calendar-alt text-primary me-2"></i>
+                                        <strong>Month:</strong> <?php echo $month_checkins_count; ?> check-ins
+                                    </li>
+                                    <li>
+                                        <i class="fas fa-server text-success me-2"></i>
+                                        <strong>Status:</strong> <span class="text-success">Online</span>
+                                    </li>
+                                    <li>
+                                        <i class="fas fa-code-branch me-2"></i>
+                                        <strong>Version:</strong> 1.0.0
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="main-footer">
+                <div class="container-fluid">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <p class="mb-0">
+                                <strong><?php echo $company_name; ?></strong> &copy; <?php echo date('Y'); ?>. All
+                                rights reserved.
+                            </p>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <p class="mb-0">
+                                Version 1.0.0 |
+                                <a href="#">Help</a> |
+                                <a href="#">Contact Support</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </footer>
+        </div>
     </div>
-</div>
 
-<!-- Chart.js Configuration -->
-<script>
-// Update time
-function updateTime() {
-    const now = new Date();
-    document.getElementById('currentTime').textContent = now.toLocaleTimeString();
-}
-updateTime();
-setInterval(updateTime, 1000);
+    <!-- Scroll to Top Button -->
+    <button id="scrollToTop" title="Go to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
 
-// Attendance Trend Chart
-const attCtx = document.getElementById('attendanceChart').getContext('2d');
-const attData = <?php echo json_encode($chart_data); ?>;
-new Chart(attCtx, {
-    type: 'line',
-    data: {
-        labels: attData.map(d => d.date),
-        datasets: [{
-            label: 'Check-ins',
-            data: attData.map(d => d.count),
-            backgroundColor: 'rgba(102, 126, 234, 0.1)',
-            borderColor: 'rgba(102, 126, 234, 1)',
-            borderWidth: 3,
-            fill: true,
-            tension: 0.4
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: {
-            legend: {
-                display: false
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: {
-                    precision: 0
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Sidebar toggle
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.getElementById('wrapper').classList.toggle('toggled');
+            });
+        }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const wrapper = document.getElementById('wrapper');
+            const sidebar = document.getElementById('sidebar-wrapper');
+            const toggleBtn = document.getElementById('sidebarToggle');
+
+            if (window.innerWidth <= 768 && wrapper.classList.contains('toggled')) {
+                if (!sidebar.contains(event.target) && !toggleBtn.contains(event.target)) {
+                    wrapper.classList.remove('toggled');
                 }
             }
-        }
-    }
-});
+        });
 
-// Department Distribution Chart
-const deptCtx = document.getElementById('departmentChart').getContext('2d');
-const deptData = <?php echo json_encode($dept_attendance); ?>;
-new Chart(deptCtx, {
-    type: 'doughnut',
-    data: {
-        labels: deptData.map(d => d.name),
-        datasets: [{
-            data: deptData.map(d => d.count),
-            backgroundColor: [
-                'rgba(102, 126, 234, 0.8)',
-                'rgba(118, 75, 162, 0.8)',
-                'rgba(255, 193, 7, 0.8)',
-                'rgba(40, 167, 69, 0.8)',
-                'rgba(220, 53, 69, 0.8)'
-            ],
-            borderWidth: 2,
-            borderColor: '#fff'
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: {
-            legend: {
-                position: 'bottom'
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
+                document.getElementById('wrapper').classList.remove('toggled');
+            }
+        });
+
+        // Current Time
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            const timeElement = document.getElementById('currentTime');
+            if (timeElement) {
+                timeElement.textContent = timeString;
             }
         }
-    }
-});
-</script>
+        updateTime();
+        setInterval(updateTime, 1000);
 
-<style>
-/* Dashboard Specific Styles */
-.page-header {
-    margin-bottom: 2rem;
-}
+        // Scroll to top button
+        const scrollToTopBtn = document.getElementById('scrollToTop');
+        if (scrollToTopBtn) {
+            window.addEventListener('scroll', function() {
+                if (window.pageYOffset > 300) {
+                    scrollToTopBtn.style.display = 'block';
+                } else {
+                    scrollToTopBtn.style.display = 'none';
+                }
+            });
 
-.page-title {
-    font-size: 1.75rem;
-    font-weight: 600;
-    color: #2c3e50;
-    margin-bottom: 0.5rem;
-}
+            scrollToTopBtn.addEventListener('click', function() {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+        }
 
-/* Modern Stat Cards */
-.stat-card {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    transition: all 0.3s;
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    height: 100%;
-}
+        // Hide loading overlay
+        setTimeout(function() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.remove('active');
+            }
+        }, 300);
 
-.stat-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
-}
+        // Add fade-in animation to content
+        const pageContent = document.querySelector('.container-fluid');
+        if (pageContent) {
+            pageContent.classList.add('fade-in');
+        }
 
-.stat-icon {
-    width: 70px;
-    height: 70px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-    flex-shrink: 0;
-}
+        // Attendance Chart
+        const attCtx = document.getElementById('attendanceChart');
+        if (attCtx) {
+            const attData = <?php echo json_encode($chart_data); ?>;
+            new Chart(attCtx, {
+                type: 'line',
+                data: {
+                    labels: attData.map(d => d.date),
+                    datasets: [{
+                        label: 'Check-ins',
+                        data: attData.map(d => d.count),
+                        backgroundColor: 'rgba(212, 175, 55, 0.1)',
+                        borderColor: '#d4af37',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#d4af37',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+        }
 
-.stat-card-primary .stat-icon {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-}
+        // Department Chart
+        const deptCtx = document.getElementById('departmentChart');
+        if (deptCtx) {
+            const deptData = <?php echo json_encode($dept_attendance); ?>;
+            new Chart(deptCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: deptData.map(d => d.name),
+                    datasets: [{
+                        data: deptData.map(d => d.count),
+                        backgroundColor: [
+                            '#d4af37',
+                            '#b8860b',
+                            '#28a745',
+                            '#17a2b8',
+                            '#ffc107',
+                            '#dc3545'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+    });
+    </script>
+</body>
 
-.stat-card-warning .stat-icon {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    color: white;
-}
-
-.stat-card-success .stat-icon {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    color: white;
-}
-
-.stat-card-info .stat-icon {
-    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-    color: white;
-}
-
-.stat-content {
-    flex: 1;
-}
-
-.stat-number {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #2c3e50;
-    margin-bottom: 0.25rem;
-}
-
-.stat-label {
-    color: #6c757d;
-    font-size: 0.9rem;
-    margin-bottom: 0.5rem;
-}
-
-.stat-link {
-    color: #667eea;
-    text-decoration: none;
-    font-size: 0.85rem;
-    font-weight: 600;
-    transition: color 0.3s;
-}
-
-.stat-link:hover {
-    color: #764ba2;
-}
-
-.stat-trend {
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-.trend-up {
-    color: #28a745;
-}
-
-.trend-down {
-    color: #dc3545;
-}
-
-/* Chart Cards */
-.chart-card {
-    border: none;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    height: 100%;
-}
-
-.chart-card .card-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 12px 12px 0 0;
-    padding: 1rem 1.5rem;
-    border: none;
-}
-
-.card-title {
-    font-weight: 600;
-}
-
-/* Activity Card */
-.activity-card {
-    border: none;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.activity-card .card-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 12px 12px 0 0;
-    padding: 1rem 1.5rem;
-    border: none;
-}
-
-.activity-card table {
-    margin-bottom: 0;
-}
-
-.activity-card table tbody tr:hover {
-    background-color: rgba(102, 126, 234, 0.05);
-}
-
-/* Quick Actions */
-.quick-actions-card {
-    border: none;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.quick-actions-card .card-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 12px 12px 0 0;
-    padding: 1rem 1.5rem;
-    border: none;
-}
-
-.quick-actions-card .btn {
-    font-weight: 600;
-    padding: 0.75rem;
-}
-
-/* System Info */
-.system-info li {
-    padding: 0.5rem 0;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.system-info li:last-child {
-    border-bottom: none;
-}
-
-/* Notification Dropdown */
-.notification-dropdown {
-    min-width: 300px;
-    max-height: 400px;
-    overflow-y: auto;
-}
-
-.notification-dropdown .dropdown-item {
-    padding: 0.75rem 1.5rem;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.notification-dropdown .dropdown-item:last-child {
-    border-bottom: none;
-}
-
-.badge-sm {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    font-size: 0.7rem;
-}
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
-    .page-title {
-        font-size: 1.5rem;
-    }
-
-    .stat-card {
-        flex-direction: row;
-        padding: 1.25rem;
-    }
-
-    .stat-icon {
-        width: 60px;
-        height: 60px;
-        font-size: 1.75rem;
-    }
-
-    .stat-number {
-        font-size: 1.75rem;
-    }
-
-    .page-header .badge {
-        font-size: 0.75rem;
-        padding: 0.5rem !important;
-    }
-}
-
-@media (max-width: 576px) {
-    .stat-icon {
-        width: 50px;
-        height: 50px;
-        font-size: 1.5rem;
-    }
-
-    .stat-number {
-        font-size: 1.5rem;
-    }
-
-    .chart-card {
-        margin-bottom: 1rem;
-    }
-}
-</style>
+</html>

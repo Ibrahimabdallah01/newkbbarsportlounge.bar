@@ -2,287 +2,310 @@
 session_start();
 require_once __DIR__ . "/../config/config.php";
 require_once __DIR__ . "/../includes/functions.php";
+require_once __DIR__ . "/../includes/auth.php";
 
-if (!is_logged_in() || !is_admin()) {
-    redirect("../index.php");
-}
+if (!is_logged_in()) redirect("../index.php");
+if (!is_admin()) redirect("../employee/dashboard.php");
 
-// Page configuration
-$page_title = "Attendance Reports";
-$current_page = "reports";
-$use_datatables = true;
+$current_page = 'reports';
+$page_title = 'Reports';
+$use_charts = true;
 
-$error = "";
-$attendances = [];
-$start_date = $_GET["start_date"] ?? "";
-$end_date = $_GET["end_date"] ?? "";
+$start_date = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-01');
+$end_date = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
 
-if (!empty($start_date) && !empty($end_date)) {
-    try {
-        $stmt = $pdo->prepare("SELECT a.*, e.name as employee_name, e.email as employee_email, d.name as department_name FROM attendances a JOIN employees e ON a.employee_id = e.id JOIN departments d ON e.department_id = d.id WHERE DATE(a.check_in) BETWEEN ? AND ? ORDER BY a.check_in DESC");
-        $stmt->execute([$start_date, $end_date]);
-        $attendances = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        $error = "Error fetching reports: " . $e->getMessage();
-    }
-}
+// Get daily attendance stats
+$stmt = $pdo->prepare("
+    SELECT 
+        DATE(check_in) as date,
+        COUNT(DISTINCT employee_id) as present_count
+    FROM attendances
+    WHERE DATE(check_in) BETWEEN ? AND ?
+    GROUP BY DATE(check_in)
+    ORDER BY date
+");
+$stmt->execute([$start_date, $end_date]);
+$daily_attendance = $stmt->fetchAll();
 
-// Include header
-include 'includes/header.php';
+// Get department-wise attendance
+$stmt = $pdo->prepare("
+    SELECT 
+        d.name as department,
+        COUNT(DISTINCT a.id) as attendance_count
+    FROM attendances a
+    INNER JOIN employees e ON a.employee_id = e.id
+    INNER JOIN departments d ON e.department_id = d.id
+    WHERE DATE(a.check_in) BETWEEN ? AND ?
+    GROUP BY d.id, d.name
+    ORDER BY attendance_count DESC
+");
+$stmt->execute([$start_date, $end_date]);
+$dept_attendance = $stmt->fetchAll();
+
+// Get late arrivals
+$stmt = $pdo->prepare("
+    SELECT 
+        e.name as employee_name,
+        d.name as department_name,
+        COUNT(*) as late_count
+    FROM attendances a
+    INNER JOIN employees e ON a.employee_id = e.id
+    LEFT JOIN departments d ON e.department_id = d.id
+    WHERE DATE(a.check_in) BETWEEN ? AND ?
+    AND TIME(a.check_in) > '09:00:00'
+    GROUP BY e.id, e.name, d.name
+    ORDER BY late_count DESC
+    LIMIT 10
+");
+$stmt->execute([$start_date, $end_date]);
+$late_arrivals = $stmt->fetchAll();
+
+include_once __DIR__ . '/layouts/head.php';
 ?>
 
-<div class="d-flex" id="wrapper">
-    <?php include 'includes/sidebar.php'; ?>
+<?php include_once __DIR__ . '/layouts/sidebar.php'; ?>
 
-    <!-- Page content wrapper -->
-    <div id="page-content-wrapper">
-        <!-- Top navigation -->
-        <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
-            <div class="container-fluid">
-                <button class="btn btn-primary" id="sidebarToggle">
-                    <i class="fas fa-bars"></i>
-                </button>
+<div id="page-content-wrapper">
+    <?php include_once __DIR__ . '/layouts/navbar.php'; ?>
 
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#navbarSupportedContent">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
+    <div class="content-wrapper">
+        <div class="container-fluid">
 
-                <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                    <ul class="navbar-nav ms-auto mt-2 mt-lg-0">
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" id="navbarDropdown" href="#" role="button"
-                                data-bs-toggle="dropdown">
-                                <i
-                                    class="fas fa-user-circle me-1"></i><?php echo htmlspecialchars($_SESSION["user_name"]); ?>
-                            </a>
-                            <div class="dropdown-menu dropdown-menu-end">
-                                <a class="dropdown-item" href="profile.php">
-                                    <i class="fas fa-user me-2"></i>Profile
-                                </a>
-                                <div class="dropdown-divider"></div>
-                                <a class="dropdown-item" href="../logout.php">
-                                    <i class="fas fa-sign-out-alt me-2"></i>Logout
-                                </a>
-                            </div>
-                        </li>
-                    </ul>
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="page-header">
+                        <h2 class="page-title"><i class="fas fa-chart-bar me-2"></i>Reports & Analytics</h2>
+                    </div>
                 </div>
             </div>
-        </nav>
 
-        <!-- Page content -->
-        <div class="container-fluid p-3 p-md-4">
-            <!-- Page Header -->
-            <div class="page-header mb-4">
-                <h1 class="page-title">
-                    <i class="fas fa-chart-bar me-2"></i>Attendance Reports
-                </h1>
-                <p class="text-muted mb-0">Generate and view attendance reports by date range</p>
-            </div>
-
-            <!-- Error Alert -->
-            <?php if ($error): ?>
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-circle me-2"></i><?php echo $error; ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            <?php endif; ?>
-
-            <!-- Filter Card -->
-            <div class="card modern-card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-filter me-2"></i>Filter Reports
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <form action="reports.php" method="GET">
-                        <div class="row g-3 align-items-end">
-                            <div class="col-12 col-md-5">
-                                <label for="start_date" class="form-label">
-                                    <i class="fas fa-calendar me-1"></i>Start Date
-                                </label>
-                                <input type="date" class="form-control" id="start_date" name="start_date"
-                                    value="<?php echo htmlspecialchars($start_date); ?>" required>
-                            </div>
-                            <div class="col-12 col-md-5">
-                                <label for="end_date" class="form-label">
-                                    <i class="fas fa-calendar me-1"></i>End Date
-                                </label>
-                                <input type="date" class="form-control" id="end_date" name="end_date"
-                                    value="<?php echo htmlspecialchars($end_date); ?>" required>
-                            </div>
-                            <div class="col-12 col-md-2">
-                                <button type="submit" class="btn btn-primary w-100">
-                                    <i class="fas fa-search me-2"></i>Generate
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-
-                    <!-- Quick Date Filters -->
-                    <div class="mt-3">
-                        <p class="text-muted mb-2">Quick Filters:</p>
-                        <div class="btn-group btn-group-sm" role="group">
-                            <button type="button" class="btn btn-outline-primary"
-                                onclick="setDateRange('today')">Today</button>
-                            <button type="button" class="btn btn-outline-primary"
-                                onclick="setDateRange('yesterday')">Yesterday</button>
-                            <button type="button" class="btn btn-outline-primary" onclick="setDateRange('week')">This
-                                Week</button>
-                            <button type="button" class="btn btn-outline-primary" onclick="setDateRange('month')">This
-                                Month</button>
+            <!-- Date Filter -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card-custom">
+                        <div class="card-body-custom">
+                            <form method="GET" class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Start Date</label>
+                                    <input type="date" class="form-control" name="start_date"
+                                        value="<?php echo $start_date; ?>" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">End Date</label>
+                                    <input type="date" class="form-control" name="end_date"
+                                        value="<?php echo $end_date; ?>" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="submit" class="btn btn-gold w-100">
+                                        <i class="fas fa-chart-line me-2"></i>Generate Report
+                                    </button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Results Card -->
-            <?php if (!empty($attendances)): ?>
-            <div class="card modern-card">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-table me-2"></i>Report Results
-                        </h5>
-                        <span class="badge bg-light text-dark"><?php echo count($attendances); ?> records</span>
+            <!-- Charts -->
+            <?php if (count($daily_attendance) > 0 || count($dept_attendance) > 0): ?>
+            <div class="row mb-4">
+                <div class="col-lg-8 mb-4">
+                    <div class="card-custom">
+                        <div class="card-header-custom">
+                            <h5 class="card-title-custom"><i class="fas fa-chart-line me-2"></i>Daily Attendance Trend
+                            </h5>
+                        </div>
+                        <div class="card-body-custom">
+                            <?php if (count($daily_attendance) > 0): ?>
+                            <canvas id="attendanceChart"></canvas>
+                            <?php else: ?>
+                            <p class="text-center text-muted py-5">No data available for the selected period</p>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table id="reportsTable" class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Employee</th>
-                                    <th>Email</th>
-                                    <th>Department</th>
-                                    <th>Check In</th>
-                                    <th>Check Out</th>
-                                    <th>Status</th>
-                                    <th>Notes</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($attendances as $att): ?>
-                                <tr>
-                                    <td><strong><?php echo htmlspecialchars($att["employee_name"]); ?></strong></td>
-                                    <td><?php echo htmlspecialchars($att["employee_email"]); ?></td>
-                                    <td><span
-                                            class="badge bg-info"><?php echo htmlspecialchars($att["department_name"]); ?></span>
-                                    </td>
-                                    <td>
-                                        <i class="fas fa-sign-in-alt text-success me-1"></i>
-                                        <?php echo date('M d, h:i A', strtotime($att["check_in"])); ?>
-                                    </td>
-                                    <td>
-                                        <?php if($att["check_out"]): ?>
-                                        <i class="fas fa-sign-out-alt text-danger me-1"></i>
-                                        <?php echo date('M d, h:i A', strtotime($att["check_out"])); ?>
-                                        <?php else: ?>
-                                        <span class="text-muted">-</span>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php
-                                        $status = $att["status"];
-                                        $badge_class = 'bg-secondary';
-                                        if ($status == 'present') $badge_class = 'bg-success';
-                                        elseif ($status == 'late') $badge_class = 'bg-warning';
-                                        elseif ($status == 'absent') $badge_class = 'bg-danger';
-                                        ?>
-                                        <span
-                                            class="badge <?php echo $badge_class; ?>"><?php echo ucfirst($status); ?></span>
-                                    </td>
-                                    <td><?php echo htmlspecialchars($att["notes"]); ?></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+
+                <div class="col-lg-4 mb-4">
+                    <div class="card-custom">
+                        <div class="card-header-custom">
+                            <h5 class="card-title-custom"><i class="fas fa-chart-pie me-2"></i>By Department</h5>
+                        </div>
+                        <div class="card-body-custom">
+                            <?php if (count($dept_attendance) > 0): ?>
+                            <canvas id="departmentChart"></canvas>
+                            <?php else: ?>
+                            <p class="text-center text-muted py-5">No data available</p>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <?php elseif (!empty($start_date) && !empty($end_date)): ?>
-            <div class="alert alert-info" role="alert">
-                <i class="fas fa-info-circle me-2"></i>No attendance records found for the selected date range.
             </div>
             <?php endif; ?>
+
+            <!-- Late Arrivals Table -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card-custom">
+                        <div class="card-header-custom">
+                            <h5 class="card-title-custom"><i class="fas fa-clock me-2"></i>Top 10 Late Arrivals</h5>
+                        </div>
+                        <div class="card-body-custom">
+                            <?php if (count($late_arrivals) > 0): ?>
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Employee</th>
+                                        <th>Department</th>
+                                        <th>Late Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($late_arrivals as $i => $rec): ?>
+                                    <tr>
+                                        <td><?php echo $i + 1; ?></td>
+                                        <td><strong
+                                                class="text-gold"><?php echo htmlspecialchars($rec['employee_name']); ?></strong>
+                                        </td>
+                                        <td><?php echo htmlspecialchars($rec['department_name'] ?: 'N/A'); ?></td>
+                                        <td><span class="badge bg-warning"><?php echo $rec['late_count']; ?>
+                                                times</span></td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                            <?php else: ?>
+                            <p class="text-center text-muted py-5">No late arrivals in the selected period</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
-
-        <?php include 'includes/footer.php'; ?>
     </div>
-</div>
 
+    <?php
+$dates = json_encode(array_column($daily_attendance, 'date'));
+$counts = json_encode(array_column($daily_attendance, 'present_count'));
+$dept_names = json_encode(array_column($dept_attendance, 'department'));
+$dept_counts = json_encode(array_column($dept_attendance, 'attendance_count'));
+
+$extra_js = "
 <script>
-$(document).ready(function() {
-    if ($("#reportsTable").length) {
-        $("#reportsTable").DataTable({
-            responsive: true,
-            order: [
-                [3, 'desc']
-            ],
-            language: {
-                search: "Search:",
-                lengthMenu: "Show _MENU_ entries",
-                info: "Showing _START_ to _END_ of _TOTAL_ records"
-            }
-        });
+" . (count($daily_attendance) > 0 ? "
+// Daily Attendance Chart
+const ctx1 = document.getElementById('attendanceChart').getContext('2d');
+new Chart(ctx1, {
+    type: 'line',
+    data: {
+        labels: $dates,
+        datasets: [{
+            label: 'Attendance',
+            data: $counts,
+            borderColor: '#d4af37',
+            backgroundColor: 'rgba(212, 175, 55, 0.1)',
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { position: 'top' }
+        }
     }
 });
+" : "") . "
 
-function setDateRange(range) {
-    const today = new Date();
-    let startDate, endDate;
+" . (count($dept_attendance) > 0 ? "
+// Department Chart
+const ctx2 = document.getElementById('departmentChart').getContext('2d');
+new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+        labels: $dept_names,
+        datasets: [{
+            data: $dept_counts,
+            backgroundColor: ['#d4af37', '#b8860b', '#ffd700', '#daa520', '#cd7f32']
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { position: 'bottom' }
+        }
+    }
+});
+" : "") . "
+</script>
+";
 
-    switch (range) {
-        case 'today':
-            startDate = endDate = today.toISOString().split('T')[0];
-            break;
-        case 'yesterday':
-            const yesterday = new Date(today);
-            yesterday.setDate(yesterday.getDate() - 1);
-            startDate = endDate = yesterday.toISOString().split('T')[0];
-            break;
-        case 'week':
-            const weekStart = new Date(today);
-            weekStart.setDate(today.getDate() - today.getDay());
-            startDate = weekStart.toISOString().split('T')[0];
-            endDate = today.toISOString().split('T')[0];
-            break;
-        case 'month':
-            startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-            endDate = today.toISOString().split('T')[0];
-            break;
+include_once __DIR__ . '/layouts/footer.php';
+?>
+
+    <style>
+    .page-header {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        padding: 1.5rem 2rem;
+        border-radius: 15px;
+        border: 2px solid #d4af37;
     }
 
-    document.getElementById('start_date').value = startDate;
-    document.getElementById('end_date').value = endDate;
-}
-</script>
+    .page-title {
+        color: #d4af37;
+        margin: 0;
+        font-weight: 700;
+    }
 
-<style>
-.modern-card {
-    border: none;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
+    .btn-gold {
+        background: linear-gradient(135deg, #b8860b 0%, #d4af37 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+    }
 
-.modern-card .card-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 12px 12px 0 0;
-    padding: 1rem 1.5rem;
-    border: none;
-}
+    .btn-gold:hover {
+        background: linear-gradient(135deg, #d4af37 0%, #b8860b 100%);
+        color: white;
+    }
 
-.page-header .page-title {
-    font-size: 1.75rem;
-    font-weight: 600;
-    color: #2c3e50;
-    margin-bottom: 0.5rem;
-}
+    .card-custom {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        border: 2px solid rgba(212, 175, 55, 0.2);
+    }
 
-.btn-group-sm .btn {
-    padding: 0.35rem 0.75rem;
-}
-</style>
+    .card-header-custom {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        padding: 1.25rem 1.5rem;
+        border-bottom: 2px solid #d4af37;
+    }
+
+    .card-title-custom {
+        color: #d4af37;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .card-body-custom {
+        padding: 1.5rem;
+    }
+
+    .table thead th {
+        background: rgba(212, 175, 55, 0.1);
+        border-bottom: 2px solid #d4af37;
+        font-weight: 700;
+    }
+
+    .table tbody tr:hover {
+        background-color: rgba(212, 175, 55, 0.05);
+    }
+
+    .text-gold {
+        color: #d4af37 !important;
+    }
+    </style>
