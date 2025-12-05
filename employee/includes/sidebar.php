@@ -34,16 +34,6 @@
             <span>My Attendance</span>
         </a>
 
-        <a class="menu-item <?php echo ($current_page == 'schedule') ? 'active' : ''; ?>" href="my_schedule.php">
-            <i class="fas fa-calendar-week"></i>
-            <span>My Schedule</span>
-        </a>
-
-        <a class="menu-item <?php echo ($current_page == 'leave') ? 'active' : ''; ?>" href="leave_request.php">
-            <i class="fas fa-umbrella-beach"></i>
-            <span>Leave Request</span>
-        </a>
-
         <a class="menu-item <?php echo ($current_page == 'profile') ? 'active' : ''; ?>" href="profile.php">
             <i class="fas fa-user-circle"></i>
             <span>My Profile</span>
