@@ -986,7 +986,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['register'])) {
                             Remember me
                         </label>
                     </div>
-                    <a href="#" class="link-glass">Forgot Password?</a>
+                    <a href="forgot_password.php" class="link-glass">Forgot Password?</a>
                 </div>
 
                 <button type="submit" class="btn-glass" id="loginBtn">
